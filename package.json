@@ -21,7 +21,8 @@
   "homepage": "https://github.com/dabbi20/bit-backend#readme",
   "dependencies": {
     "dotenv": "^17.2.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongoose": "^8.16.3"
   },
   "devDependencies": {
     "morgan": "^1.10.0",
