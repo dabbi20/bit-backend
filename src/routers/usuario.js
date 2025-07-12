@@ -1,12 +1,14 @@
 import { Router } from "express";
-import UsuariosCrontoller from "../controllers/usuario.js";
+import UsuariosController from "../controllers/usuario.js";
 
 const usuariosRouter = Router();
 
-usuariosRouter.post("/", UsuariosCrontoller.create);
-usuariosRouter.get("/", UsuariosCrontoller.readAll);
-usuariosRouter.get("/:id", UsuariosCrontoller.readOne);
-usuariosRouter.put("/:id", UsuariosCrontoller.update);
-usuariosRouter.delete("/:id", UsuariosCrontoller.delete);
+usuariosRouter.post("/", UsuariosController.create);
+usuariosRouter.get("/", UsuariosController.readAll);
+usuariosRouter.get("/:id", UsuariosController.readOne);
+usuariosRouter.put("/:id", UsuariosController.update);
+usuariosRouter.delete("/:id", UsuariosController.delete);
 
 export default usuariosRouter;
+
+

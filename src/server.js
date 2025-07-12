@@ -5,22 +5,20 @@ import morgan from "morgan";
 import usuariosRouter from "./routers/usuario.js";
 
 const server = express();
-const host = process.env.HOST;
-const port = process.env.PORT;
-
-//Username: davidack123456789
-//Contraseña Q2KvzNB9fKzLnedh
+const host = process.env.HOST || "http://localhost";
+const port = process.env.PORT || 3000;
 
 connectDB();
 
 server.use(morgan("dev"));
 server.use(express.json());
+
 server.use("/usuario", usuariosRouter);
 
-server.get("/", (request, response) => {
-  response.send("root works!");
+server.get("/", (req, res) => {
+  res.send("Root works!");
 });
 
 server.listen(port, () => {
-  console.log(`Se esta corriendo en : ${host} y en el puerto ${port}`);
+  console.log(`Servidor corriendo en: ${host} y en el puerto ${port}`);
 });

@@ -1,45 +1,59 @@
 import UsuarioModel from "../models/usuario.js";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import { sendVerificationEmail } from "../utils/sendEmail.js";
 
-const UsuariosCrontoller = {
+const UsuariosController = {
   create: async (req, res) => {
     try {
-      const { fullName, birtDate, status, age } = req.body;
-      const newUsuario = new UsuarioModel({
-        fullName,
-        birtDate,
-        status,
-        age,
+      const { nombres, apellidos, email, cell, password } = req.body;
+      const hashed = await bcrypt.hash(password, 10);
+      const emailToken = crypto.randomBytes(32).toString("hex");
+
+      const newUser = new UsuarioModel({
+        nombres,
+        apellidos,
+        email,
+        cell,
+        password: hashed,
+        emailToken,
       });
-      const usuarioCreado = await newUsuario.save();
+
+      await newUser.save();
+
+      await sendVerificationEmail(email, emailToken);
+
       res.status(201).json({
         allOK: true,
-        message: "Usuario creado correctamente",
-        data: usuarioCreado,
-      });
-    } catch (error) {
-      res.status(500).json({
-        allOK: false,
-        message: "Error creando usuario",
+        message: "Usuario registrado. Revisa tu email para verificar tu cuenta.",
         data: null,
       });
-    }
-  },
-  readAll: async (req, res) => {
-    try {
-      const usuario = await UsuarioModel.find();
-      res.status(200).json({
-        allOK: true,
-        message: "Todos los usuarios recividos",
-        data: usuario,
-      });
     } catch (error) {
       res.status(500).json({
         allOK: false,
-        message: "Error leyendo todos los usuarios",
+        message: "Error registrando usuario",
         data: error.message,
       });
     }
   },
+
+  readAll: async (req, res) => {
+    try {
+      const usuarios = await UsuarioModel.find();
+      res.status(200).json({
+        allOK: true,
+        message: "Usuarios encontrados",
+        data: usuarios,
+      });
+    } catch (error) {
+      res.status(500).json({
+        allOK: false,
+        message: "Error leyendo usuarios",
+        data: error.message,
+      });
+    }
+  },
+
   readOne: async (req, res) => {
     try {
       const { id } = req.params;
@@ -47,82 +61,90 @@ const UsuariosCrontoller = {
       if (!usuario) {
         return res.status(404).json({
           allOK: false,
-          message: `usuario con ID ${id} no encontrado`,
+          message: "Usuario no encontrado",
+          data: null,
         });
       }
       res.status(200).json({
         allOK: true,
-        message: `usuario con ID ${id} si encontrado`,
+        message: "Usuario encontrado",
         data: usuario,
       });
     } catch (error) {
       res.status(500).json({
         allOK: false,
-        message: "Error leyendo un usuario",
+        message: "Error leyendo usuario",
         data: error.message,
       });
     }
   },
+
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { fullName, birtDate, status, age } = req.body;
-      const usuarioUpdate = await UsuarioModel.findByIdAndUpdate(
+      const { nombres, apellidos, email, cell, password } = req.body;
+
+      const updateData = { nombres, apellidos, email, cell };
+
+      if (password) {
+        const hashed = await bcrypt.hash(password, 10);
+        updateData.password = hashed;
+      }
+
+      const usuarioActualizado = await UsuarioModel.findByIdAndUpdate(
         id,
-        {
-          fullName,
-          birtDate,
-          status,
-          age,
-        },
+        updateData,
         { new: true }
       );
 
-      if (!usuarioUpdate) {
+      if (!usuarioActualizado) {
         return res.status(404).json({
           allOK: false,
-          message: `usuario con ID ${id} no actuazlizado`,
+          message: "Usuario no encontrado para actualizar",
           data: null,
         });
       }
+
       res.status(200).json({
         allOK: true,
-        message: `usuario con ID ${id} si actualizado`,
-        data: usuarioUpdate,
+        message: "Usuario actualizado",
+        data: usuarioActualizado,
       });
     } catch (error) {
       res.status(500).json({
         allOK: false,
-        message: "Error actualizando un usuario",
+        message: "Error actualizando usuario",
         data: error.message,
       });
     }
   },
+
   delete: async (req, res) => {
     try {
       const { id } = req.params;
-      const usuarioDeleted = await UsuarioModel.findByIdAndDelete(id);
+      const usuarioEliminado = await UsuarioModel.findByIdAndDelete(id);
 
-      if (!usuarioDeleted) {
+      if (!usuarioEliminado) {
         return res.status(404).json({
           allOK: false,
-          message: `usuario con ID ${id} no borrado`,
+          message: "Usuario no encontrado para eliminar",
           data: null,
         });
       }
+
       res.status(200).json({
         allOK: true,
-        message: `usuario con ID ${id} fue borrado`,
+        message: "Usuario eliminado",
         data: null,
       });
     } catch (error) {
       res.status(500).json({
         allOK: false,
-        message: "Error eliminando un usuario",
+        message: "Error eliminando usuario",
         data: error.message,
       });
     }
   },
 };
 
-export default UsuariosCrontoller;
+export default UsuariosController;
