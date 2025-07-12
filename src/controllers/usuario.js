@@ -11,13 +11,11 @@ const UsuariosCrontoller = {
         age,
       });
       const usuarioCreado = await newUsuario.save();
-      res
-        .status(201)
-        .json({
-          allOK: true,
-          message: "Usuario creado correctamente",
-          data: usuarioCreado,
-        });
+      res.status(201).json({
+        allOK: true,
+        message: "Usuario creado correctamente",
+        data: usuarioCreado,
+      });
     } catch (error) {
       res.status(500).json({
         allOK: false,
@@ -29,13 +27,11 @@ const UsuariosCrontoller = {
   readAll: async (req, res) => {
     try {
       const usuario = await UsuarioModel.find();
-      res
-        .status(200)
-        .json({
-          allOK: true,
-          message: "Todos los usuarios recividos",
-          data: usuario,
-        });
+      res.status(200).json({
+        allOK: true,
+        message: "Todos los usuarios recividos",
+        data: usuario,
+      });
     } catch (error) {
       res.status(500).json({
         allOK: false,
@@ -105,9 +101,9 @@ const UsuariosCrontoller = {
   delete: async (req, res) => {
     try {
       const { id } = req.params;
-      const usuarioDeleted = await UsuarioModel.findByIdAndDelete(id) 
+      const usuarioDeleted = await UsuarioModel.findByIdAndDelete(id);
 
-if (!usuarioDeleted) {
+      if (!usuarioDeleted) {
         return res.status(404).json({
           allOK: false,
           message: `usuario con ID ${id} no borrado`,
@@ -119,8 +115,7 @@ if (!usuarioDeleted) {
         message: `usuario con ID ${id} fue borrado`,
         data: null,
       });
-
-} catch (error) {
+    } catch (error) {
       res.status(500).json({
         allOK: false,
         message: "Error eliminando un usuario",

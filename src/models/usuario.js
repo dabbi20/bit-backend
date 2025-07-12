@@ -1,20 +1,21 @@
-import { Schema,model } from "mongoose";
+import { Schema, model } from "mongoose";
 
-const usuarioSchema = new Schema({
-   
-    fullName:{
-        type: String,
+const usuarioSchema = new Schema(
+  {
+    fullName: {
+      type: String,
     },
     birtDate: {
-        type: Date,
+      type: Date,
     },
     status: {
-        type:Boolean,
+      type: Boolean,
     },
     age: {
-        type:Number,
+      type: Number,
     },
-}, {versionKey:false, timestamps:true }
+  },
+  { versionKey: false, timestamps: true }
 );
 
 export default model("Usuario", usuarioSchema);
