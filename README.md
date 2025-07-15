@@ -19,6 +19,7 @@ Este proyecto es una API REST construida con Node.js, Express y MongoDB para la 
 
 ##  Estructura de Carpetas
 
+```
 bit-backend/
 ├── node_modules/
 ├── src/
@@ -38,6 +39,7 @@ bit-backend/
 ├── package.json
 ├── package-lock.json
 ├── README.md
+```
 
 
 
