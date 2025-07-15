@@ -1,13 +1,15 @@
 import UsuarioModel from "../models/usuario.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { sendVerificationEmail } from "../utils/sendEmail.js";
+
+const JWT_SECRET = process.env.JWT_SECRET || "clave_secreta";
 
 const UsuariosController = {
   create: async (req, res) => {
     try {
       const { nombres, apellidos, email, cell, password } = req.body;
-      const hashed = await bcrypt.hash(password, 10);
       const emailToken = crypto.randomBytes(32).toString("hex");
 
       const newUser = new UsuarioModel({
@@ -15,11 +17,11 @@ const UsuariosController = {
         apellidos,
         email,
         cell,
-        password: hashed,
+        password,  // solo pasamos el password plano
         emailToken,
       });
 
-      await newUser.save();
+      await newUser.save(); // aquí se hashea el password con el pre save del modelo
 
       await sendVerificationEmail(email, emailToken);
 
@@ -84,20 +86,8 @@ const UsuariosController = {
       const { id } = req.params;
       const { nombres, apellidos, email, cell, password } = req.body;
 
-      const updateData = { nombres, apellidos, email, cell };
-
-      if (password) {
-        const hashed = await bcrypt.hash(password, 10);
-        updateData.password = hashed;
-      }
-
-      const usuarioActualizado = await UsuarioModel.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true }
-      );
-
-      if (!usuarioActualizado) {
+      const usuario = await UsuarioModel.findById(id);
+      if (!usuario) {
         return res.status(404).json({
           allOK: false,
           message: "Usuario no encontrado para actualizar",
@@ -105,10 +95,21 @@ const UsuariosController = {
         });
       }
 
+      usuario.nombres = nombres;
+      usuario.apellidos = apellidos;
+      usuario.email = email;
+      usuario.cell = cell;
+
+      if (password) {
+        usuario.password = password; // asignamos la password sin hashear
+      }
+
+      await usuario.save(); // aquí se hashea si password fue modificado
+
       res.status(200).json({
         allOK: true,
         message: "Usuario actualizado",
-        data: usuarioActualizado,
+        data: usuario,
       });
     } catch (error) {
       res.status(500).json({
@@ -145,6 +146,101 @@ const UsuariosController = {
       });
     }
   },
+
+  verifyEmail: async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const usuario = await UsuarioModel.findOne({ emailToken: token });
+
+      if (!usuario) {
+        return res.status(400).json({
+          allOK: false,
+          message: "Token inválido o usuario no encontrado",
+          data: null,
+        });
+      }
+
+      usuario.isVerified = true;
+      usuario.emailToken = null; // eliminar token para que no se reutilice
+
+      await usuario.save();
+
+      res.status(200).json({
+        allOK: true,
+        message: "Correo verificado correctamente",
+        data: null,
+      });
+    } catch (error) {
+      res.status(500).json({
+        allOK: false,
+        message: "Error verificando correo",
+        data: error.message,
+      });
+    }
+  },
+
+  login: async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+      const usuario = await UsuarioModel.findOne({ email });
+
+      if (!usuario) {
+        return res.status(404).json({
+          allOK: false,
+          message: "Usuario no encontrado",
+          data: null,
+        });
+      }
+
+      if (!usuario.isVerified) {
+        return res.status(401).json({
+          allOK: false,
+          message: "Correo no verificado",
+          data: null,
+        });
+      }
+
+      const isMatch = await bcrypt.compare(password, usuario.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          allOK: false,
+          message: "Contraseña incorrecta",
+          data: null,
+        });
+      }
+
+      const token = jwt.sign(
+        { id: usuario._id, email: usuario.email },
+        JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      res.status(200).json({
+        allOK: true,
+        message: "Login exitoso",
+        data: {
+          token,
+          usuario: {
+            id: usuario._id,
+            nombres: usuario.nombres,
+            apellidos: usuario.apellidos,
+            email: usuario.email,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error en login:", error);
+      res.status(500).json({
+        allOK: false,
+        message: "Error en el servidor",
+        data: error.message,
+      });
+    }
+  },
 };
 
 export default UsuariosController;
+
+

@@ -10,7 +10,8 @@ export const sendVerificationEmail = async (to, token) => {
     },
   });
 
-  const url = `${process.env.FRONTEND_URL}/verify?token=${token}`;
+  // Apuntar al backend, puerto 3000
+  const url = `${process.env.HOST}:${process.env.PORT}/usuario/verify/${token}`;
 
   const mailOptions = {
     from: `"Tu App" <${process.env.EMAIL_USER}>`,
