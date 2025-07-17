@@ -1,16 +1,14 @@
-// src/utils/sendEmail.js
 import nodemailer from "nodemailer";
 
 export const sendVerificationEmail = async (to, token) => {
   const transport = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: process.env.EMAIL_USER, 
-      pass: process.env.EMAIL_PASS, 
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
-  // Apuntar al backend, puerto 3000
   const url = `${process.env.HOST}:${process.env.PORT}/usuario/verify/${token}`;
 
   const mailOptions = {
