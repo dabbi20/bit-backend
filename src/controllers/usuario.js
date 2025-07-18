@@ -1,4 +1,4 @@
-import UsuarioModel from "../models/usuario.js";
+import UsuarioModel from "../models/UsuarioModel.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -7,10 +7,28 @@ import { sendVerificationEmail } from "../utils/sendEmail.js";
 const JWT_SECRET = process.env.JWT_SECRET || "clave_secreta";
 
 const UsuariosController = {
+  // Ruta para limpiar todos los usuarios (solo para desarrollo)
+  clear: async (req, res) => {
+    try {
+      await UsuarioModel.deleteMany({});
+      res.status(200).json({
+        allOK: true,
+        message: "Todos los usuarios han sido eliminados.",
+        data: null
+      });
+    } catch (error) {
+      console.error('Error en clear:', error);
+      res.status(500).json({
+        allOK: false,
+        message: error.message || "Error eliminando usuarios",
+        data: null
+      });
+    }
+  },
+
   create: async (req, res) => {
     try {
       const { nombres, apellidos, email, cell, password } = req.body;
-      const emailToken = crypto.randomBytes(32).toString("hex");
 
       const newUser = new UsuarioModel({
         nombres,
@@ -18,23 +36,29 @@ const UsuariosController = {
         email,
         cell,
         password,  // solo pasamos el password plano
-        emailToken,
+        isVerified: true,  // El usuario se registra como verificado
+        estado: 'activo'  // El usuario está activo inmediatamente
       });
 
       await newUser.save(); // aquí se hashea el password con el pre save del modelo
 
-      await sendVerificationEmail(email, emailToken);
+      // No necesitamos enviar correo ni token de verificación
+      console.log('Usuario creado:', {
+        email,
+        estado: 'registrado'
+      });
 
       res.status(201).json({
         allOK: true,
-        message: "Usuario registrado. Revisa tu email para verificar tu cuenta.",
+        message: "Usuario registrado exitosamente. Ya puedes iniciar sesión.",
         data: null,
       });
     } catch (error) {
+      console.error('Error en create:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error registrando usuario",
-        data: error.message,
+        message: error.message || "Error registrando usuario",
+        data: null,
       });
     }
   },
@@ -48,18 +72,18 @@ const UsuariosController = {
         data: usuarios,
       });
     } catch (error) {
+      console.error('Error en readAll:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error leyendo usuarios",
-        data: error.message,
+        message: error.message || "Error obteniendo usuarios",
+        data: null,
       });
     }
   },
 
   readOne: async (req, res) => {
     try {
-      const { id } = req.params;
-      const usuario = await UsuarioModel.findById(id);
+      const usuario = await UsuarioModel.findById(req.params.id);
       if (!usuario) {
         return res.status(404).json({
           allOK: false,
@@ -73,38 +97,37 @@ const UsuariosController = {
         data: usuario,
       });
     } catch (error) {
+      console.error('Error en readOne:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error leyendo usuario",
-        data: error.message,
+        message: error.message || "Error obteniendo usuario",
+        data: null,
       });
     }
   },
 
   update: async (req, res) => {
     try {
-      const { id } = req.params;
-      const { nombres, apellidos, email, cell, password } = req.body;
-
-      const usuario = await UsuarioModel.findById(id);
+      const usuario = await UsuarioModel.findById(req.params.id);
       if (!usuario) {
         return res.status(404).json({
           allOK: false,
-          message: "Usuario no encontrado para actualizar",
+          message: "Usuario no encontrado",
           data: null,
         });
       }
 
-      usuario.nombres = nombres;
-      usuario.apellidos = apellidos;
-      usuario.email = email;
-      usuario.cell = cell;
+      const { nombres, apellidos, email, cell, password } = req.body;
 
+      if (nombres) usuario.nombres = nombres;
+      if (apellidos) usuario.apellidos = apellidos;
+      if (email) usuario.email = email;
+      if (cell) usuario.cell = cell;
       if (password) {
-        usuario.password = password; // asignamos la password sin hashear
+        usuario.password = password; // será hasheado por el pre save
       }
 
-      await usuario.save(); // aquí se hashea si password fue modificado
+      await usuario.save();
 
       res.status(200).json({
         allOK: true,
@@ -112,37 +135,36 @@ const UsuariosController = {
         data: usuario,
       });
     } catch (error) {
+      console.error('Error en update:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error actualizando usuario",
-        data: error.message,
+        message: error.message || "Error actualizando usuario",
+        data: null,
       });
     }
   },
 
   delete: async (req, res) => {
     try {
-      const { id } = req.params;
-      const usuarioEliminado = await UsuarioModel.findByIdAndDelete(id);
-
-      if (!usuarioEliminado) {
+      const usuario = await UsuarioModel.findByIdAndDelete(req.params.id);
+      if (!usuario) {
         return res.status(404).json({
           allOK: false,
-          message: "Usuario no encontrado para eliminar",
+          message: "Usuario no encontrado",
           data: null,
         });
       }
-
       res.status(200).json({
         allOK: true,
         message: "Usuario eliminado",
-        data: null,
+        data: usuario,
       });
     } catch (error) {
+      console.error('Error en delete:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error eliminando usuario",
-        data: error.message,
+        message: error.message || "Error eliminando usuario",
+        data: null,
       });
     }
   },
@@ -150,7 +172,6 @@ const UsuariosController = {
   verifyEmail: async (req, res) => {
     try {
       const { token } = req.params;
-
       const usuario = await UsuarioModel.findOne({ emailToken: token });
 
       if (!usuario) {
@@ -162,47 +183,38 @@ const UsuariosController = {
       }
 
       usuario.isVerified = true;
-      usuario.emailToken = null; // eliminar token para que no se reutilice
-
+      usuario.emailToken = undefined;
       await usuario.save();
 
       res.status(200).json({
         allOK: true,
-        message: "Correo verificado correctamente",
+        message: "Email verificado correctamente",
         data: null,
       });
     } catch (error) {
+      console.error('Error en verifyEmail:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error verificando correo",
-        data: error.message,
+        message: error.message || "Error verificando email",
+        data: null,
       });
     }
   },
 
   login: async (req, res) => {
-    const { email, password } = req.body;
-
     try {
+      const { email, password } = req.body;
       const usuario = await UsuarioModel.findOne({ email });
 
       if (!usuario) {
-        return res.status(404).json({
+        return res.status(401).json({
           allOK: false,
           message: "Usuario no encontrado",
           data: null,
         });
       }
 
-      if (!usuario.isVerified) {
-        return res.status(401).json({
-          allOK: false,
-          message: "Correo no verificado",
-          data: null,
-        });
-      }
-
-      const isMatch = await bcrypt.compare(password, usuario.password);
+      const isMatch = await usuario.comparePassword(password);
       if (!isMatch) {
         return res.status(401).json({
           allOK: false,
@@ -211,10 +223,18 @@ const UsuariosController = {
         });
       }
 
+      if (!usuario.isVerified) {
+        return res.status(401).json({
+          allOK: false,
+          message: "Cuenta no verificada. Por favor verifica tu correo",
+          data: null,
+        });
+      }
+
       const token = jwt.sign(
-        { id: usuario._id, email: usuario.email },
+        { id: usuario._id },
         JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "24h" }
       );
 
       res.status(200).json({
@@ -227,20 +247,21 @@ const UsuariosController = {
             nombres: usuario.nombres,
             apellidos: usuario.apellidos,
             email: usuario.email,
-          },
-        },
+            cell: usuario.cell,
+            rol: usuario.rol,
+            estado: usuario.estado
+          }
+        }
       });
     } catch (error) {
-      console.error("Error en login:", error);
+      console.error('Error en login:', error);
       res.status(500).json({
         allOK: false,
-        message: "Error en el servidor",
-        data: error.message,
+        message: error.message || "Error al iniciar sesión",
+        data: null,
       });
     }
-  },
+  }
 };
 
 export default UsuariosController;
-
-
