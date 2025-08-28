@@ -3,14 +3,18 @@ import UsuariosController from '../controllers/usuario.js';
 
 const router = express.Router();
 
-// Rutas de usuario
-// Ruta para limpiar usuarios (solo para desarrollo)
-router.delete('/clear', UsuariosController.clear);
-
-router.post('/', UsuariosController.create);
-router.get('/', UsuariosController.readAll);
-router.get('/verify/:token', UsuariosController.verifyEmail);
+// Rutas públicas
 router.post('/login', UsuariosController.login);
+router.post('/', UsuariosController.create);
+router.get('/verify/:token', UsuariosController.verifyEmail);
+
+// Ruta de limpieza (solo para desarrollo)
+if (process.env.NODE_ENV !== 'production') {
+  router.delete('/clear', UsuariosController.clear);
+}
+
+// Rutas protegidas
+router.get('/', UsuariosController.readAll);
 router.get('/:id', UsuariosController.readOne);
 router.put('/:id', UsuariosController.update);
 router.delete('/:id', UsuariosController.delete);

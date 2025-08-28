@@ -28,16 +28,22 @@ const UsuariosController = {
 
   create: async (req, res) => {
     try {
-      const { nombres, apellidos, email, cell, password } = req.body;
+      const { name, email, password, cell = '' } = req.body;
+      
+      // Si viene name, lo dividimos en nombres y apellidos
+      // Si no, usamos valores por defecto
+      const [nombres, ...apellidosArray] = name ? name.split(' ') : ['Usuario', ''];
+      const apellidos = apellidosArray.join(' ') || 'Sin apellido';
 
       const newUser = new UsuarioModel({
-        nombres,
-        apellidos,
+        nombres: nombres || 'Usuario',
+        apellidos: apellidos || 'Sin apellido',
         email,
         cell,
-        password,  // solo pasamos el password plano
-        isVerified: true,  // El usuario se registra como verificado
-        estado: 'activo'  // El usuario está activo inmediatamente
+        password,
+        isVerified: true,
+        estado: 'activo',
+        rol: 'usuario'
       });
 
       await newUser.save(); // aquí se hashea el password con el pre save del modelo
@@ -204,55 +210,47 @@ const UsuariosController = {
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
-      const usuario = await UsuarioModel.findOne({ email });
 
-      if (!usuario) {
-        return res.status(401).json({
-          allOK: false,
-          message: "Usuario no encontrado",
-          data: null,
+      // Buscar el usuario por email
+      const user = await UsuarioModel.findOne({ email });
+
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: 'Credenciales inválidas',
+          data: null
         });
       }
 
-      const isMatch = await usuario.comparePassword(password);
+      // Verificar la contraseña
+      const isMatch = await user.comparePassword(password);
+
       if (!isMatch) {
-        return res.status(401).json({
-          allOK: false,
-          message: "Contraseña incorrecta",
-          data: null,
+        return res.status(400).json({
+          success: false,
+          message: 'Credenciales inválidas',
+          data: null
         });
       }
 
-      if (!usuario.isVerified) {
-        return res.status(401).json({
-          allOK: false,
-          message: "Cuenta no verificada. Por favor verifica tu correo",
-          data: null,
-        });
-      }
-
+      // Crear el token JWT
       const token = jwt.sign(
-        { id: usuario._id },
+        { id: user._id, email: user.email, rol: user.rol },
         JWT_SECRET,
-        { expiresIn: "24h" }
+        { expiresIn: '1d' }
       );
 
-      res.status(200).json({
-        allOK: true,
-        message: "Login exitoso",
-        data: {
-          token,
-          usuario: {
-            id: usuario._id,
-            nombres: usuario.nombres,
-            apellidos: usuario.apellidos,
-            email: usuario.email,
-            cell: usuario.cell,
-            rol: usuario.rol,
-            estado: usuario.estado
-          }
-        }
-      });
+      // Preparar la respuesta en el formato que espera el frontend
+      const userResponse = {
+        id: user._id,
+        email: user.email,
+        name: `${user.nombres} ${user.apellidos}`.trim(),
+        token: token,
+        roles: [user.rol],
+        expiresIn: 86400 // 1 día en segundos
+      };
+
+      res.json(userResponse);
     } catch (error) {
       console.error('Error en login:', error);
       res.status(500).json({
